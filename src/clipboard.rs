@@ -93,3 +93,31 @@ fn copy_file_osx(relative_path: PathBuf) -> anyhow::Result<()> {
     .run()?;
     Ok(())
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_os_env_target_should_not_fail() {
+        let target = get_os_env_target();
+        match target {
+            OSEnvTarget::OSX => println!("Detected OSX environment"),
+            OSEnvTarget::WSL2 => println!("Detected WSL2 environment"),
+            OSEnvTarget::Generic => println!("Detected Generic environment"),
+        }
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_copy_file_osx() {
+        use std::{fs::File, io::Read};
+
+        let cargo_path = std::env::current_dir().unwrap().join("Cargo.toml");
+        copy_file_osx(cargo_path.clone()).unwrap();
+        let path = duct::cmd!("osascript", "-e", "POSIX path of (the clipboard as «class furl»)").read().unwrap();
+        let path = path.trim();
+        assert_eq!(cargo_path.to_str().unwrap(), path);
+    }
+}
