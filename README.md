@@ -22,7 +22,7 @@ Or build locally for testing:
 cargo build --release
 ```
 
-The resulting binary is called `cb`.
+The resulting binary is called `hikkiban`.
 
 ## Usage
 
