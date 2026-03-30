@@ -1,26 +1,25 @@
 use std::io;
-use std::os::unix::process::CommandExt;
-use std::{error::Error, io::Read};
+use std::io::Read;
 
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
-use log::{debug, error, info};
+use log::{error, info};
+use std::path::PathBuf;
 
-/// Clipboard CLI tool for copying any file content that clipboard-rs supports. Also supports WSL2 preferentially if the --wsl2 flag is set, which will use WSL2's clipboard integration instead of the default method. This allows for seamless copying and pasting between Windows and WSL2 environments.
+use crate::clipboard::{CopyFileClipboard, get_os_env_target};
+
+mod clipboard;
+
 #[derive(Parser, Debug)]
 #[command(name = "cb")]
 #[command(
     version,
-    about = "A CLI tool for copying and pasting. Supports WSL2",
-    long_about = "Clipboard CLI tool for copying any file content that clipboard-rs supports. Also supports WSL2 preferentially if the --wsl2 flag is set, which will use WSL2's clipboard integration instead of the default method. This allows for seamless copying and pasting between Windows and WSL2 environments.
+    about = "A CLI tool for copying and pasting. Supports WSL2 and OSX primarily",
+    long_about = "Clipboard CLI tool for copying/pasting file contents/stdin
 "
 )]
 pub struct Cli {
-    /// Enable WSL2 compatibility mode
-    #[arg(long, global = true, default_value_t = false)]
-    pub wsl2: bool,
-
-    /// verbosity level
+    /// verbosity level (e.g., -v, -vv, -vvv)
     #[arg(short, long, global = true, action = clap::ArgAction::Count)]
     pub verbosity: u8,
 
@@ -35,17 +34,18 @@ pub enum Command {
     Copy {
         /// The file path to copy from (if omitted, reads from stdin)
         #[arg(short, long)]
-        file: Option<String>,
+        file: Option<PathBuf>,
     },
 
     /// Paste contents from the clipboard
     Paste {
         /// The file path to paste into (if omitted, prints to stdout)
         #[arg(short, long)]
-        file: Option<String>,
+        file: Option<PathBuf>,
     },
 }
 
+///Convert number of verbosity flags to a log level filter (e.g., -v, -vv, -vvv).
 fn log_level_filter(verbosity: u8) -> log::LevelFilter {
     match verbosity {
         0 => log::LevelFilter::Error,
@@ -57,6 +57,7 @@ fn log_level_filter(verbosity: u8) -> log::LevelFilter {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
+    //Logging
     if cli.verbosity > 0 {
         env_logger::Builder::new()
             .filter_level(log_level_filter(cli.verbosity))
@@ -66,22 +67,14 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Copy { file } => {
             if let Some(file_path) = file {
-                // Copy from the specified file
-                info!("Copying from file: {}", file_path);
-                // Implement the logic to read the file and copy its contents to the clipboard
-                if is_wsl::is_wsl() {
-                    debug!("Running in WSL environment, using WSL clipboard integration");
-                    copy_file_powershell(&file_path)?;
-                } else {
-                    let content = std::fs::read_to_string(file_path)?;
-                    clipboard_anywhere::set_clipboard(&content)?;
-                }
+                info!("Copying from file: {:?}", file_path);
+                get_os_env_target().copy_file(file_path)?
             } else {
-                // Copy from stdin
                 info!("Copying from stdin...");
                 let mut buffer = Vec::new();
 
                 let bytes_read = io::stdin().read_to_end(&mut buffer)?;
+
                 if bytes_read == 0 {
                     error!("No input provided. Nothing copied to clipboard.");
                     return Err(anyhow!("No input provided. Nothing copied to clipboard."));
@@ -91,25 +84,14 @@ fn main() -> anyhow::Result<()> {
         }
         Command::Paste { file } => {
             if let Some(file_path) = file {
-                // Paste into the specified file
-                info!("Pasting into file: {}", file_path);
-                // Implement the logic to paste clipboard contents into the specified file
+                info!("Pasting into file: {:?}", file_path);
                 std::fs::write(file_path, clipboard_anywhere::get_clipboard()?)?;
             } else {
-                // Paste to stdout
                 info!("Pasting to stdout...");
-                // Implement the logic to paste clipboard contents to stdout
                 let cb = clipboard_anywhere::get_clipboard()?;
                 println!("{}", cb);
             }
         }
     }
-    Ok(())
-}
-
-fn copy_file_powershell(file: &str) -> anyhow::Result<()> {
-    debug!("Copying file '{}' to clipboard using PowerShell", file);
-    duct::cmd!("powershell.exe", "-sta", "Set-Clipboard", "-Path", file).run()?;
-
     Ok(())
 }
