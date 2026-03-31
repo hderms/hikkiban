@@ -16,7 +16,7 @@ pub(crate) trait CopyFileClipboard {
 /// - WSL2: Windows Subsystem for Linux 2
 /// - Generic: fallback cross-platform behavior
 pub(crate) enum OSEnvTarget {
-    OSX,
+    Osx,
     WSL2,
     Generic,
     XWindows,
@@ -26,14 +26,14 @@ pub(crate) enum OSEnvTarget {
 pub(crate) fn get_os_env_target(allow_wsl: bool) -> OSEnvTarget {
     let info = os_info::get();
     if is_wsl::is_wsl() && allow_wsl {
-        return OSEnvTarget::WSL2;
+        OSEnvTarget::WSL2
     } else {
         if info.os_type() == os_info::Type::Macos {
-            return OSEnvTarget::OSX;
+            OSEnvTarget::Osx
         } else if which::which("xclip").is_ok() {
-            return OSEnvTarget::XWindows;
+            OSEnvTarget::XWindows
         } else {
-            return OSEnvTarget::Generic;
+            OSEnvTarget::Generic
         }
     }
 }
@@ -44,7 +44,7 @@ impl CopyFileClipboard for OSEnvTarget {
         let absolute_path = fs::canonicalize(&filepath)?;
 
         match self {
-            OSEnvTarget::OSX => copy_file_osx(absolute_path),
+            OSEnvTarget::Osx => copy_file_osx(absolute_path),
             OSEnvTarget::WSL2 => copy_file_powershell(absolute_path),
             OSEnvTarget::XWindows => copy_file_xclip(absolute_path),
             OSEnvTarget::Generic => {

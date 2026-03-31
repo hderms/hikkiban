@@ -72,7 +72,7 @@ fn main() -> anyhow::Result<()> {
         Command::Copy { file } => {
             if let Some(file_path) = file {
                 info!("Copying from file: {:?}", file_path);
-                get_os_env_target(!!cli.nowsl).copy_file(file_path)?
+                get_os_env_target(cli.nowsl).copy_file(file_path)?
             } else {
                 info!("Copying from stdin...");
                 let mut buffer = Vec::new();
