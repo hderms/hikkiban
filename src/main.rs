@@ -14,14 +14,14 @@ mod clipboard;
 #[command(name = "cb")]
 #[command(
     version,
-    about = "A CLI tool for copying and pasting. Supports WSL2 and OSX primarily",
+    about = "A CLI tool for copying and pasting. Supports WSL/WSL2 and OSX primarily",
     long_about = "Clipboard CLI tool for copying/pasting file contents/stdin
 "
 )]
 pub struct Cli {
-    /// Enable WSL2 compatibility mode
-    #[arg(long, global = true, default_value_t = true)]
-    pub wsl2: bool,
+    /// disable WSL/2 compatibility mode
+    #[arg(short, long, global = true, action = clap::ArgAction::SetFalse)]
+    pub nowsl: bool,
 
     /// verbosity level (e.g., -v, -vv, -vvv)
     #[arg(short, long, global = true, action = clap::ArgAction::Count)]
@@ -72,7 +72,7 @@ fn main() -> anyhow::Result<()> {
         Command::Copy { file } => {
             if let Some(file_path) = file {
                 info!("Copying from file: {:?}", file_path);
-                get_os_env_target().copy_file(file_path)?
+                get_os_env_target(!!cli.nowsl).copy_file(file_path)?
             } else {
                 info!("Copying from stdin...");
                 let mut buffer = Vec::new();
