@@ -17,7 +17,7 @@ use log::{debug, error, info};
 )]
 pub struct Cli {
     /// Enable WSL2 compatibility mode
-    #[arg(long, global = true, default_value_t = false)]
+    #[arg(long, global = true, default_value_t = true)]
     pub wsl2: bool,
 
     /// verbosity level
